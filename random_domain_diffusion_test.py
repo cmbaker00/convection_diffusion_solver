@@ -96,5 +96,23 @@ if __name__ == '__main__':
             pass
             viewer.plot()  # doctest: +GMSH
 
+    d_grid = [
+        [-2, -2, 2, 2],
+        [-1, 2, -1 ,2],
+        [1, 5, 0, 2]
+    ]
+    def diffusion_spatial(x_values, y_values, grid):
+        f = interp2d(d_grid[0], d_grid[1], d_grid[2])
+        return f(x_values, y_values)[0]*(x_values*0 + 1)
+
+    eq = TransientTerm() == ConvectionTerm(coeff=(.1, .1)) + DiffusionTerm(coeff= 0.01*D * diffusion_spatial(mesh.x, mesh.y, d_grid)) \
+         - ImplicitSourceTerm(coeff=1)
+
+    for step in range(steps):
+        eq.solve(var=phi, dt = timeStepDuration)  # doctest: +GMSH
+        if viewer is not None:
+            pass
+            viewer.plot()  # doctest: +GMSH
+
 t_end = time.time()
 print(t_end-t_start)
