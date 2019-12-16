@@ -1,11 +1,16 @@
 # https://www.ctcms.nist.gov/fipy/examples/diffusion/generated/examples.diffusion.circle.html
 
-cellSize = 0.02
+cellSize = 0.1
 radius = 1.
 
 from fipy import CellVariable, Gmsh2D, TransientTerm, DiffusionTerm, Viewer, TSVViewer, ConvectionTerm
 from fipy.tools import numerix
 from fipy.terms.implicitSourceTerm import ImplicitSourceTerm
+import numpy as np
+from functools import lru_cache
+import time
+from scipy.interpolate import interp2d
+
 mesh = Gmsh2D('''
 cellSize = %(cellSize)g;
 radius = %(radius)g;
@@ -43,10 +48,39 @@ if __name__ == '__main__':
     except:
         print("Unable to create a viewer for an irregular mesh (try Matplotlib2DViewer or MayaviViewer)")
 
-    D = 0.02
-    eq = TransientTerm() == ConvectionTerm(coeff = (1,1)) + DiffusionTerm(coeff=D) - ImplicitSourceTerm(coeff = 1)
-    # eq = TransientTerm() == DiffusionTerm(coeff=D)
     X, Y = mesh.faceCenters  # doctest: +GMSH
+
+    D = 2
+    # eq = TransientTerm() == ConvectionTerm(coeff = (1,1)) + DiffusionTerm(coeff=CellVariable(mesh, value = abs(X))) - ImplicitSourceTerm(coeff = 1)
+
+    # eq = TransientTerm() == ConvectionTerm(coeff=(1, 1)) + DiffusionTerm(coeff=10 * D * mesh.x * (mesh.x >= 0.5)
+    #                                                                            + D * ((mesh.x > -0.5) & (mesh.x < 0.5))
+    #                                                                            + .2 * D * ((mesh.x > -0.6) & (
+    #             mesh.x < -0.59))
+    #                                                                      ) \
+    #      - ImplicitSourceTerm(coeff=1)
+
+    # eq = TransientTerm() == ConvectionTerm(coeff=(1, 1)) + DiffusionTerm(coeff= D * mesh.x * (mesh.x >= 0)
+    #                                                                      -10* D * mesh.x* (mesh.x <= -0)
+    #                                                                      ) \
+    #      - ImplicitSourceTerm(coeff=1)
+
+    t_start = time.time()
+    # @lru_cache(maxsize=1000)
+    d_grid = [
+        [-2, -2, 2, 2],
+        [-1, 2, -1 ,2],
+        [1, 5, 0, 2]
+    ]
+    def diffusion_spatial(x_values, y_values, grid):
+        f = interp2d(d_grid[0], d_grid[1], d_grid[2])
+        return f(x_values, y_values)[0]*(x_values*0 + 1)
+
+    eq = TransientTerm() == ConvectionTerm(coeff=(.1, .1)) + DiffusionTerm(coeff= D * diffusion_spatial(mesh.x, mesh.y, d_grid)) \
+         - ImplicitSourceTerm(coeff=1)
+
+    # eq = TransientTerm() == ConvectionTerm(coeff = (1,1)) + DiffusionTerm(coeff=D * ((mesh.x > -0.5) & (mesh.x < 0.5))) - ImplicitSourceTerm(coeff = 1)
+    # eq = TransientTerm() == DiffusionTerm(coeff=D)
     mask = ((X > 0.4) & (Y > 0.65))
     print(X.shape)
     # phi.constrain(X, mesh.exteriorFaces)  # doctest: +GMSH
@@ -58,5 +92,9 @@ if __name__ == '__main__':
     from builtins import range
     for step in range(steps):
         eq.solve(var=phi, dt = timeStepDuration)  # doctest: +GMSH
-        # if viewer is not None:
-        #     viewer.plot()  # doctest: +GMSH
+        if viewer is not None:
+            pass
+            viewer.plot()  # doctest: +GMSH
+
+t_end = time.time()
+print(t_end-t_start)
