@@ -14,6 +14,7 @@ class PDE_object:
         self.parameter_dictionary = self.load_parameter_file()
 
         self.region_coordinates = self.load_region()
+        self.convection_data = self.load_convection()
 
         # self.domain_file = domain_file
         # self.domain_file = convection_file_x
@@ -129,6 +130,36 @@ class PDE_object:
                 coordinate_list.append(current_list)
                 return coordinate_list
 
+    def load_convection(self):
+        x_time, x_xy_vals, x_conv_vals = self.load_single_convection('x')
+        y_time, y_xy_vals, y_conv_vals = self.load_single_convection('y')
+
+        if x_xy_vals != y_xy_vals:
+            raise ValueError("Input advection x and y values must be the same between files")
+        if x_time != y_time:
+            raise ValueError("Input times must be the same across x and y files")
+
+        return {'convection_time': x_time, 'convection_coordinates': x_xy_vals,
+                'convection_x': x_conv_vals, 'convection_y': y_conv_vals}
+
+    def load_single_convection(self, direction):
+        if direction is 'x':
+            fname = self.parameter_dictionary['convection_x_file_name']
+        else:
+            fname = self.parameter_dictionary['convection_y_file_name']
+        with open(fname) as csvfile:
+            csv_reader = csv.reader(csvfile)
+            next(csv_reader)
+            time_array = next(csv_reader)[2:]
+            try:
+                xy_vals = []
+                conv_vals = []
+                while True:
+                    line = next(csv_reader)
+                    xy_vals.append(line[:2])
+                    conv_vals.append(line[2:])
+            except StopIteration:
+                return time_array, xy_vals, conv_vals
 
 if __name__ == "__main__":
     test = PDE_object('model_parameters_test.csv')
