@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     X, Y = mesh.faceCenters  # doctest: +GMSH
 
-    D = 2
+    D = .2
     # eq = TransientTerm() == ConvectionTerm(coeff = (1,1)) + DiffusionTerm(coeff=CellVariable(mesh, value = abs(X))) - ImplicitSourceTerm(coeff = 1)
 
     # eq = TransientTerm() == ConvectionTerm(coeff=(1, 1)) + DiffusionTerm(coeff=10 * D * mesh.x * (mesh.x >= 0.5)
@@ -70,13 +70,22 @@ if __name__ == '__main__':
     d_grid = [
         [-2, -2, 2, 2],
         [-1, 2, -1 ,2],
-        [1, 5, 0, 2]
+        [1, 5, 5, 2]
     ]
     def diffusion_spatial(x_values, y_values, grid):
-        f = interp2d(d_grid[0], d_grid[1], d_grid[2])
+        f = interp2d(d_grid[0], grid[1], grid[2])
         return f(x_values, y_values)[0]*(x_values*0 + 1)
 
-    eq = TransientTerm() == ConvectionTerm(coeff=(.1, .1)) + DiffusionTerm(coeff= D * diffusion_spatial(mesh.x, mesh.y, d_grid)) \
+    def advection_x(x_values, y_values, grid):
+        return abs(x_values) + abs(y_values)+1
+
+    def advection_y(x_values, y_values, grid):
+        return 0*abs(x_values) + 0*abs(y_values)
+
+
+    v = CellVariable(mesh, rank = 1)
+    v.setValue((advection_x(mesh.x, mesh.y, d_grid), advection_y(mesh.x, mesh.y, d_grid)))
+    eq = TransientTerm() == ConvectionTerm(coeff=v) + DiffusionTerm(coeff= D * diffusion_spatial(mesh.x, mesh.y, d_grid)) \
          - ImplicitSourceTerm(coeff=1)
 
     # eq = TransientTerm() == ConvectionTerm(coeff = (1,1)) + DiffusionTerm(coeff=D * ((mesh.x > -0.5) & (mesh.x < 0.5))) - ImplicitSourceTerm(coeff = 1)
