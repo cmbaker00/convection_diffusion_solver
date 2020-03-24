@@ -11,7 +11,9 @@ from scipy.interpolate import interp2d
 class PDE_object:
     def __init__(self, parameter_file):
         self.parameter_file = parameter_file
-        self.load_parameter_file()
+        self.parameter_dictionary = self.load_parameter_file()
+
+        self.region_coordinates = self.load_region()
 
         # self.domain_file = domain_file
         # self.domain_file = convection_file_x
@@ -102,12 +104,30 @@ class PDE_object:
 
                         attribute_dictionary['boundary_source_region'] = boundary_source_region
 
+            except StopIteration:
+                return attribute_dictionary
 
+    def load_region(self):
+        fname = self.parameter_dictionary['region_file_name']
+        with open(fname) as csvfile:
+            csv_reader = csv.reader(csvfile)
+            coordinate_list = []
+            current_list = []
+            try:
+                while True:
+                    c_line = next(csv_reader)
+                    if c_line[1] is 'y':
+                        c_line = next(csv_reader)
+                    if c_line[0] is '':
+                        coordinate_list.append(current_list)
+                        current_list = []
+                        c_line = next(csv_reader)
 
+                    current_list.append([float(c_line[0]), float(c_line[1])])
 
             except StopIteration:
-                print(attribute_dictionary)
-                pass
+                coordinate_list.append(current_list)
+                return coordinate_list
 
 
 if __name__ == "__main__":
