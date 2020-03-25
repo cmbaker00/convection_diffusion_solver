@@ -7,6 +7,7 @@ import time
 import csv
 import itertools
 from scipy.interpolate import interp2d
+import matplotlib.pyplot as plt
 
 
 class PDE_object:
@@ -17,7 +18,9 @@ class PDE_object:
         self.region_coordinates = self.load_region()
         self.convection_data = self.load_convection()
 
-        self.create_mesh()
+        self.mesh = self.create_mesh()
+
+        self.plot_mesh()
 
     def load_parameter_file(self):
         attribute_dictionary = {}
@@ -161,9 +164,11 @@ class PDE_object:
                 return time_array, xy_vals, conv_vals
 
     def create_mesh(self):
+        print("Creating mesh")
+
         #Todo - decide where these two parameters need to be defined.
-        cellSize = 0.05
-        radius = 1.
+        cellSize = 0.1
+        radius = 0.01
 
         # get region data
         coordinates = self.region_coordinates
@@ -205,7 +210,16 @@ class PDE_object:
         g_str = g_str + str(line_loop_list[-1]) + '};\n'  # add the final line loop and close brackets
 
         mesh = Gmsh2D(g_str % locals())  # define mesh
+
+        x = mesh.cellCenters.value[0]
+        print("Mesh created with {x} points".format(x=len(x)))
         return mesh
+
+    def plot_mesh(self):
+        x = self.mesh.cellCenters.value[0]
+        y = self.mesh.cellCenters.value[1]
+        plt.scatter(x,y)
+        plt.show()
 
 
 if __name__ == "__main__":
