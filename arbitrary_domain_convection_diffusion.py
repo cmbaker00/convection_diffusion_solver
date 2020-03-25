@@ -5,6 +5,7 @@ import numpy as np
 from functools import lru_cache
 import time
 import csv
+import itertools
 from scipy.interpolate import interp2d
 
 
@@ -16,9 +17,7 @@ class PDE_object:
         self.region_coordinates = self.load_region()
         self.convection_data = self.load_convection()
 
-        # self.domain_file = domain_file
-        # self.domain_file = convection_file_x
-        # self.domain_file = convection_file_y
+        self.create_mesh()
 
     def load_parameter_file(self):
         attribute_dictionary = {}
@@ -160,6 +159,54 @@ class PDE_object:
                     conv_vals.append(line[2:])
             except StopIteration:
                 return time_array, xy_vals, conv_vals
+
+    def create_mesh(self):
+        #Todo - decide where these two parameters need to be defined.
+        cellSize = 0.05
+        radius = 1.
+
+        # get region data
+        coordinates = self.region_coordinates
+
+        # setup the base string
+        g_str = '''cellSize = %(cellSize)g;
+                    radius = %(radius)g;
+                        '''
+        count = itertools.count(1)  # counter to label the points
+        line_loop_list = []  # list to keep track of the line loops
+        for point_list in coordinates:  # loop through each of the sublists of points
+            current_point_list = []  # keep track of the points in the current list
+
+            for points in point_list:  # loop through the point coordinates
+                current_point = next(count)  # update point number
+                current_point_list.append(current_point)  # add point number to current list
+                g_str = g_str + 'Point(' + str(current_point) + ') = {' + str(points[0]) + ', ' + \
+                    str(points[1]) + ', 0, cellSize};\n'  # add the point to the string
+
+            spline_number = next(count)  # label current spline
+            g_str = g_str + 'Spline(' + str(spline_number) + ') = {'  # add spline number
+
+            # loop through the points and add them to the current spline
+            for point in current_point_list:
+                g_str = g_str + str(point) + ','
+            g_str = g_str + str(current_point_list[0]) + '};\n'  # add the first point again to complete the loop
+
+            # add the line loop
+            line_loop_number = next(count)
+            line_loop_list.append(line_loop_number)
+            g_str = g_str + 'Line Loop (' + str(line_loop_number) + ') = {' + str(spline_number) + '};\n'
+
+        surface_number = next(count)  # define surface number
+        g_str = g_str + 'Plane Surface(' + str(surface_number) + ') = {'  # add surface number to string
+
+        # loop through the line loops and add to the string (up to the final one, which doesn't need a comma).
+        for line_loop in line_loop_list[:-1]:
+            g_str = g_str + str(line_loop) + ','
+        g_str = g_str + str(line_loop_list[-1]) + '};\n'  # add the final line loop and close brackets
+
+        mesh = Gmsh2D(g_str % locals())  # define mesh
+        return mesh
+
 
 if __name__ == "__main__":
     test = PDE_object('model_parameters_test.csv')

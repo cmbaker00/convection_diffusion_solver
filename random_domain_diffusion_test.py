@@ -1,6 +1,6 @@
 # https://www.ctcms.nist.gov/fipy/examples/diffusion/generated/examples.diffusion.circle.html
 
-cellSize = 0.1
+cellSize = 0.05
 radius = 1.
 
 from fipy import CellVariable, Gmsh2D, TransientTerm, DiffusionTerm, Viewer, TSVViewer, ConvectionTerm
@@ -31,6 +31,38 @@ Spline(15) = {12,13,14,12};
 Line Loop(16) = {15};
 Plane Surface(11) = {10, 16};
 ''' % locals())  # doctest: +GMSH
+
+mesh = Gmsh2D('''cellSize = %(cellSize)g;
+radius = %(radius)g;
+Point(1) = {0,1,0, cellSize};
+Point(2) = {1,0,0, cellSize};
+Point(3) = {1,1,0, cellSize};
+Spline(4) = {1,2,3,1};
+Line Loop(5) = {4};
+Point(6) = {0.7,.5,0, cellSize};
+Point(7) = {.5,0.7,0, cellSize};
+Point(8) = {.7,.7,0, cellSize};
+Spline(9) = {6,7,8,6};
+Line Loop(10) = {9};
+Plane Surface(11) = {5, 10};
+''' % locals())
+
+st = '''cellSize = %(cellSize)g;
+radius = %(radius)g;
+Point(1) = {0.0, 1.0, 0 cellSize};
+Point(2) = {1.0, 0.0, 0 cellSize};
+Point(3) = {1.0, 1.0, 0 cellSize};
+Spline(4) = {1,2,3,1};
+Line Loop (5) = {4};
+Point(6) = {0.7, 0.5, 0 cellSize};
+Point(7) = {0.5, 0.7, 0 cellSize};
+Point(8) = {0.7, 0.7, 0 cellSize};
+Spline(9) = {6,7,8,6};
+Line Loop (10) = {9};
+Plane Surface(11) = {5,10};
+'''
+
+mesh = Gmsh2D(st % locals())
 
 
 phi = CellVariable(name = "solution variable",
