@@ -6,6 +6,7 @@ from functools import lru_cache
 import time
 import csv
 import itertools
+import copy
 from scipy.interpolate import interp2d
 import matplotlib.pyplot as plt
 
@@ -19,6 +20,7 @@ class PDE_object:
         self.convection_data = self.load_convection()
 
         self.mesh = self.create_mesh()
+        self.create_solution_variable()
 
         self.plot_mesh()
 
@@ -64,15 +66,15 @@ class PDE_object:
                         attribute_dictionary['Decay'] = current_row[1]
 
                     if 'Initial condition' in current_row[0]:
-                        attribute_dictionary['IC_value'] = current_row[1]
+                        attribute_dictionary['IC_value'] = float(current_row[1])
                         current_row = next(param_reader)
-                        ic_xmin = current_row[1]
+                        ic_xmin = float(current_row[1])
                         current_row = next(param_reader)
-                        ic_xmax = current_row[1]
+                        ic_xmax = float(current_row[1])
                         current_row = next(param_reader)
-                        ic_ymin = current_row[1]
+                        ic_ymin = float(current_row[1])
                         current_row = next(param_reader)
-                        ic_ymax = current_row[1]
+                        ic_ymax = float(current_row[1])
                         ic_region = {'xmin': ic_xmin, 'xmax': ic_xmax, 'ymin': ic_ymin, 'ymax': ic_ymax}
 
                         attribute_dictionary['IC_region'] = ic_region
@@ -167,8 +169,8 @@ class PDE_object:
         print("Creating mesh")
 
         #Todo - decide where these two parameters need to be defined.
-        cellSize = 0.1
-        radius = 0.01
+        cellSize = 0.05
+        radius = 0.1
         splines_flag = False
 
         # get region data
@@ -248,6 +250,30 @@ class PDE_object:
         x = mesh.cellCenters.value[0]
         print("Mesh created with {x} points".format(x=len(x)))
         return mesh
+
+    def create_solution_variable(self, existing_solution=None):
+        if existing_solution is None:
+            initial_condition_value = self.parameter_dictionary['IC_value']
+            ic_region = self.parameter_dictionary['IC_region']
+            ic_array = copy.deepcopy(self.mesh.cellCenters[0])
+
+            xmesh = self.mesh.cellCenters[0]
+            ymesh = self.mesh.cellCenters[1]
+
+            ic_array[xmesh < ic_region['xmin']] = 0
+            ic_array[xmesh >= ic_region['xmin']] = initial_condition_value
+            ic_array[xmesh > ic_region['xmax']] = 0
+            ic_array[ymesh < ic_region['ymin']] = 0
+            ic_array[ymesh > ic_region['ymax']] = 0
+
+        else:
+            ic_array = existing_solution
+
+        phi = CellVariable(name="solution variable",
+                           mesh=self.mesh,
+                           value=ic_array)
+
+        return phi
 
     def plot_mesh(self):
         x = self.mesh.cellCenters.value[0]
