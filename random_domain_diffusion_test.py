@@ -62,6 +62,19 @@ Line Loop (10) = {9};
 Plane Surface(11) = {5,10};
 '''
 
+# st = '''cellSize = %(cellSize)g;
+# radius = %(radius)g;
+# Point(1) = {0.0, 1.0, 0, cellSize};
+# Point(2) = {1.0, 0.0, 0, cellSize};
+# Point(3) = {1.0, 1.0, 0, cellSize};
+# Line(4) = {1,2};
+# Line(5) = {2,3};
+# Line(6) = {3,1};
+# Line Loop(7) = {4,5,6};
+# Plane Surface(8) = {7};
+# '''
+
+
 mesh = Gmsh2D(st % locals())
 
 

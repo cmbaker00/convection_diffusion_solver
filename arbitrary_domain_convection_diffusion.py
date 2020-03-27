@@ -169,6 +169,7 @@ class PDE_object:
         #Todo - decide where these two parameters need to be defined.
         cellSize = 0.1
         radius = 0.01
+        splines_flag = False
 
         # get region data
         coordinates = self.region_coordinates
@@ -177,37 +178,70 @@ class PDE_object:
         g_str = '''cellSize = %(cellSize)g;
                     radius = %(radius)g;
                         '''
+
         count = itertools.count(1)  # counter to label the points
         line_loop_list = []  # list to keep track of the line loops
-        for point_list in coordinates:  # loop through each of the sublists of points
-            current_point_list = []  # keep track of the points in the current list
+        if splines_flag:
+            for point_list in coordinates:  # loop through each of the sublists of points
+                current_point_list = []  # keep track of the points in the current list
 
-            for points in point_list:  # loop through the point coordinates
-                current_point = next(count)  # update point number
-                current_point_list.append(current_point)  # add point number to current list
-                g_str = g_str + 'Point(' + str(current_point) + ') = {' + str(points[0]) + ', ' + \
-                    str(points[1]) + ', 0, cellSize};\n'  # add the point to the string
+                for points in point_list:  # loop through the point coordinates
+                    current_point = next(count)  # update point number
+                    current_point_list.append(current_point)  # add point number to current list
+                    g_str = g_str + 'Point(' + str(current_point) + ') = {' + str(points[0]) + ', ' + \
+                        str(points[1]) + ', 0, cellSize};\n'  # add the point to the string
 
-            spline_number = next(count)  # label current spline
-            g_str = g_str + 'Spline(' + str(spline_number) + ') = {'  # add spline number
+                spline_number = next(count)  # label current spline
+                g_str = g_str + 'Spline(' + str(spline_number) + ') = {'  # add spline number
 
-            # loop through the points and add them to the current spline
-            for point in current_point_list:
-                g_str = g_str + str(point) + ','
-            g_str = g_str + str(current_point_list[0]) + '};\n'  # add the first point again to complete the loop
+                # loop through the points and add them to the current spline
+                for point in current_point_list:
+                    g_str = g_str + str(point) + ','
+                g_str = g_str + str(current_point_list[0]) + '};\n'  # add the first point again to complete the loop
 
-            # add the line loop
-            line_loop_number = next(count)
-            line_loop_list.append(line_loop_number)
-            g_str = g_str + 'Line Loop (' + str(line_loop_number) + ') = {' + str(spline_number) + '};\n'
+                # add the line loop
+                line_loop_number = next(count)
+                line_loop_list.append(line_loop_number)
+                g_str = g_str + 'Line Loop (' + str(line_loop_number) + ') = {' + str(spline_number) + '};\n'
 
-        surface_number = next(count)  # define surface number
-        g_str = g_str + 'Plane Surface(' + str(surface_number) + ') = {'  # add surface number to string
+            surface_number = next(count)  # define surface number
+            g_str = g_str + 'Plane Surface(' + str(surface_number) + ') = {'  # add surface number to string
 
-        # loop through the line loops and add to the string (up to the final one, which doesn't need a comma).
-        for line_loop in line_loop_list[:-1]:
-            g_str = g_str + str(line_loop) + ','
-        g_str = g_str + str(line_loop_list[-1]) + '};\n'  # add the final line loop and close brackets
+            # loop through the line loops and add to the string (up to the final one, which doesn't need a comma).
+            for line_loop in line_loop_list[:-1]:
+                g_str = g_str + str(line_loop) + ','
+            g_str = g_str + str(line_loop_list[-1]) + '};\n'  # add the final line loop and close brackets
+        else:
+            for point_list in coordinates:  # loop through each of the sublists of points
+                current_point_list = []  # keep track of the points in the current list
+
+                for points in point_list:  # loop through the point coordinates
+                    current_point = next(count)  # update point number
+                    current_point_list.append(current_point)  # add point number to current list
+                    g_str = g_str + 'Point(' + str(current_point) + ') = {' + str(points[0]) + ', ' + \
+                        str(points[1]) + ', 0, cellSize};\n'  # add the point to the string
+
+                current_line_list = []
+                for point1, point2 in zip(current_point_list,current_point_list[1:] + [current_point_list[0]]):
+                    current_line = next(count)
+                    current_line_list.append(current_line)
+                    g_str = g_str + 'Line(' + str(current_line) + ') = {' + str(point1) + ',' + str(point2) + '};\n'
+
+                # add the line loop
+                line_loop_number = next(count)
+                line_loop_list.append(line_loop_number)
+                g_str = g_str + 'Line Loop (' + str(line_loop_number) + ') = {'
+                for line_number in current_line_list[:-1]:
+                    g_str = g_str + str(line_number) + ','
+                g_str = g_str + str(current_line_list[-1]) + '};\n'
+
+            surface_number = next(count)  # define surface number
+            g_str = g_str + 'Plane Surface(' + str(surface_number) + ') = {'  # add surface number to string
+
+            # loop through the line loops and add to the string (up to the final one, which doesn't need a comma).
+            for line_loop in line_loop_list[:-1]:
+                g_str = g_str + str(line_loop) + ','
+            g_str = g_str + str(line_loop_list[-1]) + '};\n'  # add the final line loop and close brackets
 
         mesh = Gmsh2D(g_str % locals())  # define mesh
 
