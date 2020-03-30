@@ -31,7 +31,7 @@ Plane Surface(11) = {10, 16};
 
 
 #
-# phi = CellVariable(name = "solution variable",
+# solution_variable = CellVariable(name = "solution variable",
 #                    mesh = mesh,
 #                    value = 0.) # doctest: +GMSH
 #

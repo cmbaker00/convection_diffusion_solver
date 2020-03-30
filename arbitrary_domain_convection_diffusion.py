@@ -11,18 +11,21 @@ from scipy.interpolate import interp2d
 import matplotlib.pyplot as plt
 
 
-class PDE_object:
+class PDEObject:
     def __init__(self, parameter_file):
         self.parameter_file = parameter_file
         self.parameter_dictionary = self.load_parameter_file()
+        self.parameter_dictionary['cellSize'] = 0.1
 
         self.region_coordinates = self.load_region()
         self.convection_data = self.load_convection()
 
         self.mesh = self.create_mesh()
-        self.create_solution_variable()
+        self.solution_variable = self.define_solution_variable()
 
-        self.plot_mesh()
+        self.pde_equation = self.define_ode(0)
+
+        # self.plot_mesh()
 
     def load_parameter_file(self):
         attribute_dictionary = {}
@@ -61,7 +64,7 @@ class PDE_object:
 
                     if 'Parameters' in current_row[0]:
                         current_row = next(param_reader)
-                        attribute_dictionary['Diffusivity'] = current_row[1]
+                        attribute_dictionary['Diffusivity'] = float(current_row[1])
                         current_row = next(param_reader)
                         attribute_dictionary['Decay'] = current_row[1]
 
@@ -80,30 +83,30 @@ class PDE_object:
                         attribute_dictionary['IC_region'] = ic_region
 
                     if 'Internal source ' in current_row[0]:
-                        attribute_dictionary['internal_source_value'] = current_row[1]
+                        attribute_dictionary['internal_source_value'] = float(current_row[1])
                         current_row = next(param_reader)
-                        internal_source_xmin = current_row[1]
+                        internal_source_xmin = float(current_row[1])
                         current_row = next(param_reader)
-                        internal_source_xmax = current_row[1]
+                        internal_source_xmax = float(current_row[1])
                         current_row = next(param_reader)
-                        internal_source_ymin = current_row[1]
+                        internal_source_ymin = float(current_row[1])
                         current_row = next(param_reader)
-                        internal_source_ymax = current_row[1]
+                        internal_source_ymax = float(current_row[1])
                         internal_source_region = {'xmin': internal_source_xmin, 'xmax': internal_source_xmax,
                                                   'ymin': internal_source_ymin, 'ymax': internal_source_ymax}
 
                         attribute_dictionary['internal_source_region'] = internal_source_region
 
                     if 'Boundary source' in current_row[0]:
-                        attribute_dictionary['boundary_source_value'] = current_row[1]
+                        attribute_dictionary['boundary_source_value'] = float(current_row[1])
                         current_row = next(param_reader)
-                        boundary_source_xmin = current_row[1]
+                        boundary_source_xmin = float(current_row[1])
                         current_row = next(param_reader)
-                        boundary_source_xmax = current_row[1]
+                        boundary_source_xmax = float(current_row[1])
                         current_row = next(param_reader)
-                        boundary_source_ymin = current_row[1]
+                        boundary_source_ymin = float(current_row[1])
                         current_row = next(param_reader)
-                        boundary_source_ymax = current_row[1]
+                        boundary_source_ymax = float(current_row[1])
                         boundary_source_region = {'xmin': boundary_source_xmin, 'xmax': boundary_source_xmax,
                                                   'ymin': boundary_source_ymin, 'ymax': boundary_source_ymax}
 
@@ -134,11 +137,33 @@ class PDE_object:
                 coordinate_list.append(current_list)
                 return coordinate_list
 
+    @staticmethod
+    def string_array_to_float(input_array):
+        if type(input_array[0]) is str:
+            return list(map(float, input_array))
+        else:
+            if type(input_array[0][0]) is str:
+                return [list(map(float, sublist)) for sublist in input_array]
+            else:
+                raise Exception('No support for type {} in list to float conversion'.format(type(input_array[0][0])))
+
     def load_convection(self):
         x_time, x_xy_vals, x_conv_vals = self.load_single_convection('x')
         y_time, y_xy_vals, y_conv_vals = self.load_single_convection('y')
 
-        if x_xy_vals != y_xy_vals:
+        x_time = self.string_array_to_float(x_time)
+        y_time = self.string_array_to_float(y_time)
+
+        x_conv_vals = list(np.array(self.string_array_to_float(x_conv_vals)).transpose())
+        y_conv_vals = list(np.array(self.string_array_to_float(y_conv_vals)).transpose())
+
+        x_xy_vals = self.string_array_to_float(x_xy_vals)
+        y_xy_vals = self.string_array_to_float(y_xy_vals)
+
+        x_xy_vals = np.array(x_xy_vals).transpose()
+        y_xy_vals = np.array(y_xy_vals).transpose()
+
+        if (x_xy_vals != y_xy_vals).all():
             raise ValueError("Input advection x and y values must be the same between files")
         if x_time != y_time:
             raise ValueError("Input times must be the same across x and y files")
@@ -168,8 +193,8 @@ class PDE_object:
     def create_mesh(self):
         print("Creating mesh")
 
-        #Todo - decide where these two parameters need to be defined.
-        cellSize = 0.05
+        # Todo - decide where these two parameters need to be defined.
+        cellSize = self.parameter_dictionary['cellSize']
         radius = 0.1
         splines_flag = False
 
@@ -224,7 +249,7 @@ class PDE_object:
                         str(points[1]) + ', 0, cellSize};\n'  # add the point to the string
 
                 current_line_list = []
-                for point1, point2 in zip(current_point_list,current_point_list[1:] + [current_point_list[0]]):
+                for point1, point2 in zip(current_point_list, current_point_list[1:] + [current_point_list[0]]):
                     current_line = next(count)
                     current_line_list.append(current_line)
                     g_str = g_str + 'Line(' + str(current_line) + ') = {' + str(point1) + ',' + str(point2) + '};\n'
@@ -251,7 +276,7 @@ class PDE_object:
         print("Mesh created with {x} points".format(x=len(x)))
         return mesh
 
-    def create_solution_variable(self, existing_solution=None):
+    def define_solution_variable(self, existing_solution=None):
         if existing_solution is None:
             initial_condition_value = self.parameter_dictionary['IC_value']
             ic_region = self.parameter_dictionary['IC_region']
@@ -266,6 +291,8 @@ class PDE_object:
             ic_array[ymesh < ic_region['ymin']] = 0
             ic_array[ymesh > ic_region['ymax']] = 0
 
+            ic_array.mesh = self.mesh
+
         else:
             ic_array = existing_solution
 
@@ -273,14 +300,94 @@ class PDE_object:
                            mesh=self.mesh,
                            value=ic_array)
 
+        x, y = self.mesh.faceCenters
+
+        boundary_source_value = self.parameter_dictionary['boundary_source_value']
+        boundary_source_region = self.parameter_dictionary['boundary_source_region']
+
+        boundary_source_mask = (
+            (x > boundary_source_region['xmin']) &
+            (x < boundary_source_region['xmax']) &
+            (y > boundary_source_region['ymin']) &
+            (y < boundary_source_region['ymax'])
+        )
+
+        phi.faceGrad.constrain(0*self.mesh.faceNormals, self.mesh.exteriorFaces)
+        phi.faceGrad.constrain(boundary_source_value*self.mesh.faceNormals,
+                               self.mesh.exteriorFaces & boundary_source_mask)
+
         return phi
 
     def plot_mesh(self):
         x = self.mesh.cellCenters.value[0]
         y = self.mesh.cellCenters.value[1]
-        plt.scatter(x,y)
+        plt.scatter(x, y)
         plt.show()
+
+    def get_convection_x_and_y(self, current_time):
+        time_array = self.convection_data['convection_time']
+        time_index = int([current_time >= t for t in time_array].index(False) - 1)
+
+        x_coords, y_coords = self.convection_data['convection_coordinates']
+
+        x_convection = np.array(self.convection_data['convection_x'][time_index])
+        y_convection = np.array(self.convection_data['convection_y'][time_index])
+
+        x_function_convection = interp2d(x_coords, y_coords, x_convection)
+        y_function_convection = interp2d(x_coords, y_coords, y_convection)
+
+        x_mesh, y_mesh = self.mesh.x, self.mesh.y
+
+        x_convection_values = [x_function_convection(x, y)[0] for x, y in zip(x_mesh, y_mesh)]
+        y_convection_values = [y_function_convection(x, y)[0] for x, y in zip(x_mesh, y_mesh)]
+
+        return x_convection_values, y_convection_values
+
+    def define_convection_variable(self, current_time):
+        x_convection, y_convection = self.get_convection_x_and_y(current_time)
+        convection_variable = CellVariable(mesh=self.mesh, rank=1)
+        convection_variable.setValue((x_convection, y_convection))
+        return convection_variable
+
+    def define_ode(self, current_time):
+
+        x, y = self.mesh.faceCenters
+
+        internal_source_value = self.parameter_dictionary['internal_source_value']
+        internal_source_region = self.parameter_dictionary['internal_source_region']
+
+        internal_source_mask = (
+            (x > internal_source_region['xmin']) &
+            (x < internal_source_region['xmax']) &
+            (y > internal_source_region['ymin']) &
+            (y < internal_source_region['ymax'])
+        )
+
+        convection = self.define_convection_variable(current_time)
+
+        eq = TransientTerm() == - ConvectionTerm(coeff=convection) \
+            + DiffusionTerm(coeff=self.parameter_dictionary['Diffusivity'])\
+            - ImplicitSourceTerm(coeff=self.parameter_dictionary['Decay'])\
+            # + ImplicitSourceTerm(coeff=internal_source_value*internal_source_mask) #Todo work out why this doesn't work
+
+        return eq
+
+    def run_ode_test(self):
+        # TODO: add support for multiple time periods
+        t_step = .1
+        steps = 100
+        pde_equation = self.pde_equation
+        sol_variable = self.solution_variable
+
+        viewer = Viewer(vars=sol_variable, datamin=-1, datamax=1.)
+        viewer.plotMesh()
+
+        for step in range(steps):
+            pde_equation.solve(var=sol_variable, dt=t_step)
+            viewer.plot()
+            print(step)
 
 
 if __name__ == "__main__":
-    test = PDE_object('model_parameters_test.csv')
+    test = PDEObject('model_parameters_test.csv')
+    test.run_ode_test()

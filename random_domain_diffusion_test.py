@@ -137,8 +137,8 @@ if __name__ == '__main__':
     # eq = TransientTerm() == DiffusionTerm(coeff=D)
     mask = ((X > 0.4) & (Y > 0.65))
     print(X.shape)
-    # phi.constrain(X, mesh.exteriorFaces)  # doctest: +GMSH
-    # phi.faceGrad.constrain(0, mesh.exteriorFaces)  # doctest: +GMSH
+    # solution_variable.constrain(X, mesh.exteriorFaces)  # doctest: +GMSH
+    # solution_variable.faceGrad.constrain(0, mesh.exteriorFaces)  # doctest: +GMSH
     phi.faceGrad.constrain(0* mesh.faceNormals, mesh.exteriorFaces)
     phi.faceGrad.constrain(2* mesh.faceNormals, mesh.exteriorFaces & mask)
     timeStepDuration = 10 * 0.9 * cellSize ** 2 / (2 * D)
