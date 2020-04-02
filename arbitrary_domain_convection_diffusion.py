@@ -23,7 +23,7 @@ class PDEObject:
         self.mesh = self.create_mesh()
         self.solution_variable = self.define_solution_variable()
 
-        self.pde_equation = self.define_ode(0)
+        self.pde_equation = self.define_ode(self.parameter_dictionary['simulation_start_time'])
 
         # self.plot_mesh()
 
@@ -45,14 +45,28 @@ class PDEObject:
                     if 'Attributes' in current_row[0]:
                         current_row = next(param_reader)
                         simulation_time = current_row[1]
-                        if abs(float(simulation_time) - int(simulation_time)) > .01:
-                            raise ValueError("Simulation time must be an integer")
-                        attribute_dictionary['simulation_time'] = int(current_row[1])
+                        try:
+                            attribute_dictionary['simulation_start_time'] = float(current_row[1])
+                        except ValueError:
+                            raise ValueError("Simulation start time must be a number")
+
                         current_row = next(param_reader)
                         try:
                             attribute_dictionary['save_frequency'] = float(current_row[1])
                         except ValueError:
                             raise ValueError("Save frequency must be a number")
+
+                        current_row = next(param_reader)
+                        try:
+                            attribute_dictionary['simulation_duration'] = float(current_row[1])
+                        except ValueError:
+                            raise ValueError("Simulation duration must be a number")
+
+                        current_row = next(param_reader)
+                        try:
+                            attribute_dictionary['source_end_time'] = float(current_row[1])
+                        except ValueError:
+                            raise ValueError("Source end time must be a number")
 
                     if 'File names' in current_row[0]:
                         current_row = next(param_reader)
@@ -324,9 +338,16 @@ class PDEObject:
         plt.scatter(x, y)
         plt.show()
 
+    def detect_change_in_convectin_data(self, t0, t1):
+        time_array = self.convection_data['convection_time']
+        return [t1 >= t for t in time_array] != [t0 >= t for t in time_array]
+
     def get_convection_x_and_y(self, current_time):
         time_array = self.convection_data['convection_time']
-        time_index = int([current_time >= t for t in time_array].index(False) - 1)
+        if current_time > max(time_array):
+            time_index = -1
+        else:
+            time_index = int([current_time >= t for t in time_array].index(False) - 1)
 
         x_coords, y_coords = self.convection_data['convection_coordinates']
 
@@ -374,6 +395,8 @@ class PDEObject:
 
     def run_ode_test(self):
         # TODO: add support for multiple time periods
+        t0 = self.parameter_dictionary['simulation_start_time']
+        current_time = t0
         t_step = .1
         steps = 100
         pde_equation = self.pde_equation
@@ -382,10 +405,20 @@ class PDEObject:
         viewer = Viewer(vars=sol_variable, datamin=-1, datamax=1.)
         viewer.plotMesh()
 
-        for step in range(steps):
+        source_flag = True
+
+        while current_time < t0 + self.parameter_dictionary['simulation_duration']:
+            if source_flag and current_time > self.parameter_dictionary['source_end_time']:
+                sol_variable.faceGrad.constrain(0 * self.mesh.faceNormals, self.mesh.exteriorFaces)
             pde_equation.solve(var=sol_variable, dt=t_step)
+
+            current_time += t_step
+            if self.detect_change_in_convectin_data(current_time - t_step, current_time):
+                pde_equation = self.define_ode(current_time)
+
+
             viewer.plot()
-            print(step)
+            print(current_time)
 
 
 if __name__ == "__main__":
