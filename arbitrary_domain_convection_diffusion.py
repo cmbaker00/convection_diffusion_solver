@@ -13,9 +13,11 @@ import matplotlib.pyplot as plt
 
 class PDEObject:
     def __init__(self, parameter_file):
+        self.parameter = self.create_parameter_class()
+
         self.parameter_file = parameter_file
-        self.parameter_dictionary = self.load_parameter_file()
-        self.parameter_dictionary['cellSize'] = 0.1
+        self.load_parameter_file()
+        self.parameter.cellSize = 0.1
 
         self.region_coordinates = self.load_region()
         self.convection_data = self.load_convection()
@@ -23,9 +25,16 @@ class PDEObject:
         self.mesh = self.create_mesh()
         self.solution_variable = self.define_solution_variable()
 
-        self.pde_equation = self.define_ode(self.parameter_dictionary['simulation_start_time'])
+        self.pde_equation = self.define_ode(self.parameter.simulation_start_time)
 
         # self.plot_mesh()
+
+    def create_parameter_class(self):
+        class Parameter:
+            def __init__(self):
+                pass
+        return Parameter
+
 
     def load_parameter_file(self):
         attribute_dictionary = {}
@@ -36,54 +45,53 @@ class PDEObject:
                     current_row = next(param_reader)
                     if 'Names' in current_row[0]:
                         current_row = next(param_reader)
-                        attribute_dictionary['simulation_name'] = current_row[1]
+                        self.parameter.simulation_name = current_row[1]
                         current_row = next(param_reader)
-                        attribute_dictionary['results_path'] = current_row[1]
+                        self.parameter.results_path = current_row[1]
                         current_row = next(param_reader)
-                        attribute_dictionary['data_path'] = current_row[1]
+                        self.parameter.data_path = current_row[1]
 
                     if 'Attributes' in current_row[0]:
                         current_row = next(param_reader)
-                        simulation_time = current_row[1]
                         try:
-                            attribute_dictionary['simulation_start_time'] = float(current_row[1])
+                            self.parameter.simulation_start_time = float(current_row[1])
                         except ValueError:
                             raise ValueError("Simulation start time must be a number")
 
                         current_row = next(param_reader)
                         try:
-                            attribute_dictionary['save_frequency'] = float(current_row[1])
+                            self.parameter.save_frequency = float(current_row[1])
                         except ValueError:
                             raise ValueError("Save frequency must be a number")
 
                         current_row = next(param_reader)
                         try:
-                            attribute_dictionary['simulation_duration'] = float(current_row[1])
+                            self.parameter.simulation_duration = float(current_row[1])
                         except ValueError:
                             raise ValueError("Simulation duration must be a number")
 
                         current_row = next(param_reader)
                         try:
-                            attribute_dictionary['source_end_time'] = float(current_row[1])
+                            self.parameter.source_end_time = float(current_row[1])
                         except ValueError:
                             raise ValueError("Source end time must be a number")
 
                     if 'File names' in current_row[0]:
                         current_row = next(param_reader)
-                        attribute_dictionary['region_file_name'] = current_row[1]
+                        self.parameter.region_file_name = current_row[1]
                         current_row = next(param_reader)
-                        attribute_dictionary['convection_x_file_name'] = current_row[1]
+                        self.parameter.convection_x_file_name = current_row[1]
                         current_row = next(param_reader)
-                        attribute_dictionary['convection_y_file_name'] = current_row[1]
+                        self.parameter.convection_y_file_name = current_row[1]
 
                     if 'Parameters' in current_row[0]:
                         current_row = next(param_reader)
-                        attribute_dictionary['Diffusivity'] = float(current_row[1])
+                        self.parameter.Diffusivity = float(current_row[1])
                         current_row = next(param_reader)
-                        attribute_dictionary['Decay'] = current_row[1]
+                        self.parameter.Decay = current_row[1]
 
                     if 'Initial condition' in current_row[0]:
-                        attribute_dictionary['IC_value'] = float(current_row[1])
+                        self.parameter.IC_value = float(current_row[1])
                         current_row = next(param_reader)
                         ic_xmin = float(current_row[1])
                         current_row = next(param_reader)
@@ -94,10 +102,10 @@ class PDEObject:
                         ic_ymax = float(current_row[1])
                         ic_region = {'xmin': ic_xmin, 'xmax': ic_xmax, 'ymin': ic_ymin, 'ymax': ic_ymax}
 
-                        attribute_dictionary['IC_region'] = ic_region
+                        self.parameter.IC_region = ic_region
 
                     if 'Internal source ' in current_row[0]:
-                        attribute_dictionary['internal_source_value'] = float(current_row[1])
+                        self.parameter.internal_source_value = float(current_row[1])
                         current_row = next(param_reader)
                         internal_source_xmin = float(current_row[1])
                         current_row = next(param_reader)
@@ -106,13 +114,17 @@ class PDEObject:
                         internal_source_ymin = float(current_row[1])
                         current_row = next(param_reader)
                         internal_source_ymax = float(current_row[1])
-                        internal_source_region = {'xmin': internal_source_xmin, 'xmax': internal_source_xmax,
-                                                  'ymin': internal_source_ymin, 'ymax': internal_source_ymax}
 
-                        attribute_dictionary['internal_source_region'] = internal_source_region
+                        internal_source_region = self.create_parameter_class()
+                        internal_source_region.xmin = internal_source_xmin
+                        internal_source_region.xmax = internal_source_xmax
+                        internal_source_region.ymin = internal_source_ymin
+                        internal_source_region.ymax = internal_source_ymax
+
+                        self.parameter.internal_source_region = internal_source_region
 
                     if 'Boundary source' in current_row[0]:
-                        attribute_dictionary['boundary_source_value'] = float(current_row[1])
+                        self.parameter.boundary_source_value = float(current_row[1])
                         current_row = next(param_reader)
                         boundary_source_xmin = float(current_row[1])
                         current_row = next(param_reader)
@@ -121,16 +133,20 @@ class PDEObject:
                         boundary_source_ymin = float(current_row[1])
                         current_row = next(param_reader)
                         boundary_source_ymax = float(current_row[1])
-                        boundary_source_region = {'xmin': boundary_source_xmin, 'xmax': boundary_source_xmax,
-                                                  'ymin': boundary_source_ymin, 'ymax': boundary_source_ymax}
 
-                        attribute_dictionary['boundary_source_region'] = boundary_source_region
+                        boundary_source_region = self.create_parameter_class()
+                        boundary_source_region.xmin = boundary_source_xmin
+                        boundary_source_region.xmax = boundary_source_xmax
+                        boundary_source_region.ymin = boundary_source_ymin
+                        boundary_source_region.ymax = boundary_source_ymax
+
+                        self.parameter.boundary_source_region = boundary_source_region
 
             except StopIteration:
                 return attribute_dictionary
 
     def load_region(self):
-        fname = self.parameter_dictionary['region_file_name']
+        fname = self.parameter.region_file_name
         with open(fname) as csvfile:
             csv_reader = csv.reader(csvfile)
             coordinate_list = []
@@ -187,9 +203,9 @@ class PDEObject:
 
     def load_single_convection(self, direction):
         if direction is 'x':
-            fname = self.parameter_dictionary['convection_x_file_name']
+            fname = self.parameter.convection_x_file_name
         else:
-            fname = self.parameter_dictionary['convection_y_file_name']
+            fname = self.parameter.convection_y_file_name
         with open(fname) as csvfile:
             csv_reader = csv.reader(csvfile)
             next(csv_reader)
@@ -208,7 +224,7 @@ class PDEObject:
         print("Creating mesh")
 
         # Todo - decide where these two parameters need to be defined.
-        cellSize = self.parameter_dictionary['cellSize']
+        cellSize = self.parameter.cellSize
         radius = 0.1
         splines_flag = False
 
@@ -292,8 +308,8 @@ class PDEObject:
 
     def define_solution_variable(self, existing_solution=None):
         if existing_solution is None:
-            initial_condition_value = self.parameter_dictionary['IC_value']
-            ic_region = self.parameter_dictionary['IC_region']
+            initial_condition_value = self.parameter.IC_value
+            ic_region = self.parameter.IC_region
             ic_array = copy.deepcopy(self.mesh.cellCenters[0])
 
             xmesh = self.mesh.cellCenters[0]
@@ -316,14 +332,14 @@ class PDEObject:
 
         x, y = self.mesh.faceCenters
 
-        boundary_source_value = self.parameter_dictionary['boundary_source_value']
-        boundary_source_region = self.parameter_dictionary['boundary_source_region']
+        boundary_source_value = self.parameter.boundary_source_value
+        boundary_source_region = self.parameter.boundary_source_region
 
         boundary_source_mask = (
-            (x > boundary_source_region['xmin']) &
-            (x < boundary_source_region['xmax']) &
-            (y > boundary_source_region['ymin']) &
-            (y < boundary_source_region['ymax'])
+            (x > boundary_source_region.xmin) &
+            (x < boundary_source_region.xmax) &
+            (y > boundary_source_region.ymin) &
+            (y < boundary_source_region.ymax)
         )
 
         phi.faceGrad.constrain(0*self.mesh.faceNormals, self.mesh.exteriorFaces)
@@ -374,28 +390,28 @@ class PDEObject:
 
         x, y = self.mesh.faceCenters
 
-        internal_source_value = self.parameter_dictionary['internal_source_value']
-        internal_source_region = self.parameter_dictionary['internal_source_region']
+        internal_source_value = self.parameter.internal_source_value
+        internal_source_region = self.parameter.internal_source_region
 
         internal_source_mask = (
-            (x > internal_source_region['xmin']) &
-            (x < internal_source_region['xmax']) &
-            (y > internal_source_region['ymin']) &
-            (y < internal_source_region['ymax'])
+            (x > internal_source_region.xmin) &
+            (x < internal_source_region.xmax) &
+            (y > internal_source_region.ymin) &
+            (y < internal_source_region.ymax)
         )
 
         convection = self.define_convection_variable(current_time)
 
         eq = TransientTerm() == - ConvectionTerm(coeff=convection) \
-            + DiffusionTerm(coeff=self.parameter_dictionary['Diffusivity'])\
-            - ImplicitSourceTerm(coeff=self.parameter_dictionary['Decay'])\
+            + DiffusionTerm(coeff=self.parameter.Diffusivity)\
+            - ImplicitSourceTerm(coeff=self.parameter.Decay)\
             # + ImplicitSourceTerm(coeff=internal_source_value*internal_source_mask) #Todo work out why this doesn't work
 
         return eq
 
     def run_ode_test(self):
         # TODO: add support for multiple time periods
-        t0 = self.parameter_dictionary['simulation_start_time']
+        t0 = self.parameter.simulation_start_time
         current_time = t0
         t_step = .1
         steps = 100
@@ -407,8 +423,8 @@ class PDEObject:
 
         source_flag = True
 
-        while current_time < t0 + self.parameter_dictionary['simulation_duration']:
-            if source_flag and current_time > self.parameter_dictionary['source_end_time']:
+        while current_time < t0 + self.parameter.simulation_duration:
+            if source_flag and current_time > self.parameter.source_end_time:
                 sol_variable.faceGrad.constrain(0 * self.mesh.faceNormals, self.mesh.exteriorFaces)
             pde_equation.solve(var=sol_variable, dt=t_step)
 
