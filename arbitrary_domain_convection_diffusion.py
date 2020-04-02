@@ -25,14 +25,20 @@ class PDEObject:
         self.mesh = self.create_mesh()
         self.solution_variable = self.define_solution_variable()
 
+        self.output_as_lists_of_lists = self.create_output_as_lists_of_lists()
+
         self.pde_equation = self.define_ode(self.parameter.simulation_start_time)
+
+        self.parameter.save_times = np.arange(start=self.parameter.simulation_start_time,
+                                              stop=self.parameter.simulation_duration,
+                                              step=self.parameter.save_frequency)
 
         # self.plot_mesh()
 
-    def create_parameter_class(self):
+    @staticmethod
+    def create_parameter_class():
         class Parameter:
-            def __init__(self):
-                pass
+            pass
         return Parameter
 
 
@@ -409,8 +415,18 @@ class PDEObject:
 
         return eq
 
+    def detect_save_time(self, t0, t1):
+        save_times = self.parameter.save_times
+        return not all((save_times < t0) == (save_times < t1))
+
+    def create_output_as_lists_of_lists(self):
+        data = [self.solution_variable.mesh.faceCenters[0], self.solution_variable.mesh.faceCenters[1]]
+        return data
+
+    def add_current_state_to_save_file(self, time):
+        self.output_as_lists_of_lists.append([time, self.solution_variable.faceValue])
+
     def run_ode_test(self):
-        # TODO: add support for multiple time periods
         t0 = self.parameter.simulation_start_time
         current_time = t0
         t_step = .1
@@ -428,9 +444,13 @@ class PDEObject:
                 sol_variable.faceGrad.constrain(0 * self.mesh.faceNormals, self.mesh.exteriorFaces)
             pde_equation.solve(var=sol_variable, dt=t_step)
 
+            previous_time = current_time
             current_time += t_step
-            if self.detect_change_in_convectin_data(current_time - t_step, current_time):
+            if self.detect_change_in_convectin_data(previous_time, current_time):
                 pde_equation = self.define_ode(current_time)
+
+            if self.detect_save_time(previous_time, current_time):
+                self.add_current_state_to_save_file(current_time)
 
 
             viewer.plot()
