@@ -9,6 +9,13 @@ import itertools
 import copy
 from scipy.interpolate import interp2d
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
+
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+
+import warnings
 
 
 class PDEObject:
@@ -17,7 +24,7 @@ class PDEObject:
 
         self.parameter_file = parameter_file
         self.load_parameter_file()
-        self.parameter.cellSize = 0.1
+        self.parameter.cellSize = 0.05
 
         self.region_coordinates = self.load_region()
         self.convection_data = self.load_convection()
@@ -312,7 +319,7 @@ class PDEObject:
         print("Mesh created with {x} points".format(x=len(x)))
         return mesh
 
-    def define_solution_variable(self, existing_solution=None):
+    def define_solution_variable(self, existing_solution=None, boundary_source = None):
         if existing_solution is None:
             initial_condition_value = self.parameter.IC_value
             ic_region = self.parameter.IC_region
@@ -336,21 +343,22 @@ class PDEObject:
                            mesh=self.mesh,
                            value=ic_array)
 
-        x, y = self.mesh.faceCenters
+        if boundary_source is not 'no flux':
+            x, y = self.mesh.faceCenters
 
-        boundary_source_value = self.parameter.boundary_source_value
-        boundary_source_region = self.parameter.boundary_source_region
+            boundary_source_value = self.parameter.boundary_source_value
+            boundary_source_region = self.parameter.boundary_source_region
 
-        boundary_source_mask = (
-            (x > boundary_source_region.xmin) &
-            (x < boundary_source_region.xmax) &
-            (y > boundary_source_region.ymin) &
-            (y < boundary_source_region.ymax)
-        )
+            boundary_source_mask = (
+                (x > boundary_source_region.xmin) &
+                (x < boundary_source_region.xmax) &
+                (y > boundary_source_region.ymin) &
+                (y < boundary_source_region.ymax)
+            )
 
-        phi.faceGrad.constrain(0*self.mesh.faceNormals, self.mesh.exteriorFaces)
-        phi.faceGrad.constrain(boundary_source_value*self.mesh.faceNormals,
-                               self.mesh.exteriorFaces & boundary_source_mask)
+            # phi.faceGrad.constrain(0*self.mesh.faceNormals, self.mesh.exteriorFaces)
+            phi.faceGrad.constrain(boundary_source_value*self.mesh.faceNormals,
+                                   self.mesh.exteriorFaces & boundary_source_mask)
 
         return phi
 
@@ -388,7 +396,7 @@ class PDEObject:
 
     def define_convection_variable(self, current_time):
         x_convection, y_convection = self.get_convection_x_and_y(current_time)
-        convection_variable = CellVariable(mesh=self.mesh, rank=1)
+        convection_variable = CellVariable(mesh=self.mesh, rank=1) # TODO does this need to be redefined every time?
         convection_variable.setValue((x_convection, y_convection))
         return convection_variable
 
@@ -440,21 +448,29 @@ class PDEObject:
         source_flag = True
 
         while current_time < t0 + self.parameter.simulation_duration:
-            if source_flag and current_time > self.parameter.source_end_time:
-                sol_variable.faceGrad.constrain(0 * self.mesh.faceNormals, self.mesh.exteriorFaces)
+            # if source_flag and current_time > self.parameter.source_end_time:
+            #     sol_variable = self.define_solution_variable(sol_variable, boundary_source='no flux')
+                # sol_variable.faceGrad.constrain(0 * self.mesh.faceNormals, self.mesh.exteriorFaces) # TODO this needs to change to a no flux condition, not a dn/dt = 0
             pde_equation.solve(var=sol_variable, dt=t_step)
 
             previous_time = current_time
             current_time += t_step
             if self.detect_change_in_convectin_data(previous_time, current_time):
                 pde_equation = self.define_ode(current_time)
+                # viewer = Viewer(vars=sol_variable, datamin=-1, datamax=1.)
+                # viewer.plotMesh()
 
             if self.detect_save_time(previous_time, current_time):
                 self.add_current_state_to_save_file(current_time)
 
-
             viewer.plot()
-            print(current_time)
+            # fig = plt.figure()
+            # ax = fig.add_subplot(111, projection='3d')
+            # ax.plot_surface(sol_variable.mesh.x, sol_variable.mesh.y, sol_variable.numericValue)
+            # plt.show()
+            print(current_time, sum(sol_variable.numericValue), max(sol_variable.numericValue)) #TODO figure out why this is increasing???
+
+        self.add_current_state_to_save_file(current_time)
 
 
 if __name__ == "__main__":
