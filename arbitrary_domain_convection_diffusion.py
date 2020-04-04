@@ -24,7 +24,7 @@ class PDEObject:
 
         self.parameter_file = parameter_file
         self.load_parameter_file()
-        self.parameter.cellSize = 0.05
+
 
         self.region_coordinates = self.load_region()
         self.convection_data = self.load_convection()
@@ -88,6 +88,13 @@ class PDEObject:
                             self.parameter.source_end_time = float(current_row[1])
                         except ValueError:
                             raise ValueError("Source end time must be a number")
+
+                        current_row = next(param_reader)
+                        try:
+                            self.parameter.cellSize = float(current_row[1])
+                        except ValueError:
+                            raise ValueError("Mesh sizing must be a number")
+
 
                     if 'File names' in current_row[0]:
                         current_row = next(param_reader)
@@ -442,7 +449,7 @@ class PDEObject:
         pde_equation = self.pde_equation
         sol_variable = self.solution_variable
 
-        viewer = Viewer(vars=sol_variable, datamin=-1, datamax=1.)
+        viewer = Viewer(vars=sol_variable, datamin=0, datamax=1.)
         viewer.plotMesh()
 
         source_flag = True
@@ -472,7 +479,27 @@ class PDEObject:
 
         self.add_current_state_to_save_file(current_time)
 
+    def write_output_to_file(self):
+        x = self.output_as_lists_of_lists[0]
+        y = self.output_as_lists_of_lists[1]
+        data = self.output_as_lists_of_lists[2:]
+
+        coords = ['x', 'y']
+        times = [r[0] for r in data]
+        rows = [[r[1].numericValue[t] for r in data] for t in range(len(x))]
+        data_output = [coords+times]
+        for x_val, y_val, row in zip(x, y, rows):
+            new_row = [[x_val, y_val] + row]
+            data_output += new_row
+
+        np.savetxt('test_save.csv', data_output, delimiter=',', fmt='%s')
+
+
+
+
+
 
 if __name__ == "__main__":
     test = PDEObject('model_parameters_test.csv')
     test.run_ode_test()
+    test.write_output_to_file()
