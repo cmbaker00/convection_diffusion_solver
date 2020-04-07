@@ -525,8 +525,9 @@ class PDEObject:
         return data
 
     # Appends the current time and state to the output to save
-    def add_current_state_to_save_file(self, time):
-        self.output_as_lists_of_lists.append([time, self.solution_variable.faceValue])
+    def add_current_state_to_save_file(self, current_time):
+        self.output_as_lists_of_lists.append([current_time,
+                                              self.solution_variable.faceValue/sum(self.solution_variable.faceValue)])
 
     def run_pde(self):
         t0 = self.parameter.simulation_start_time  # Start time for simulation
@@ -554,7 +555,6 @@ class PDEObject:
             previous_time = current_time
             current_time += t_step
 
-
             # Check for change in convection data
             if self.detect_change_in_convection_data(previous_time, current_time):
                 pde_equation = self.define_ode(current_time)
@@ -565,12 +565,14 @@ class PDEObject:
 
             if self.parameter.plotting:
                 viewer.plot()
-            print('Current time step: {}, finish time: {}'.format(current_time, self.parameter.simulation_duration))
 
             # If the final time step goes beyond the duration, do a shorter finishing step.
             if current_time > t0 + self.parameter.simulation_duration:
                 t_step = current_time - (t0 + self.parameter.simulation_duration)
+                current_time = t0 + self.parameter.simulation_duration  # set current time to the final time
                 pde_equation.solve(var=sol_variable, dt=t_step)  # solve one time step
+
+            print('Current time step: {}, finish time: {}'.format(current_time, self.parameter.simulation_duration))
 
         # At completion, save the final state
         self.add_current_state_to_save_file(current_time)
@@ -589,7 +591,7 @@ class PDEObject:
             data_output += new_row
 
         np.savetxt(
-            "{path}{name_results}.csv".format(
+            "{path}{name}_results.csv".format(
                 path=self.parameter.results_path,
                 name=self.parameter.simulation_name
             ),
