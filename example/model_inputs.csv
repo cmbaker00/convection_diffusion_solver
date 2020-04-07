@@ -1,0 +1,40 @@
+﻿Names,
+Simulation name,example
+Results path,example/
+Data path,example/
+,
+Attributes,
+Simulation start time,0
+Save frequency,0.2
+Simulation duration,5
+Source end time,1
+Mesh sizing,0.1
+Solution time step,0.1
+Plot while solving,FALSE
+,
+File names,
+Region,region.csv
+Convection,convection_x.csv
+,convection_y.csv
+,
+Parameters,
+Diffusion,0.02
+Decay,0
+,
+Initial condition,2
+x>=,0
+x<=,1
+y>=,0
+y<=,1
+,
+Internal source ,0
+x>,0
+x<,0
+y>,0
+y<,0
+,
+Boundary source,0
+x>,0
+x<,0
+y>,0
+y<,0

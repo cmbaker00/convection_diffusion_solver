@@ -576,8 +576,10 @@ class PDEObject:
 
         # At completion, save the final state
         self.add_current_state_to_save_file(current_time)
+        print('PDE solving complete')
 
     def write_output_to_file(self):
+        print('Saving simulation data')
         x = self.output_as_lists_of_lists[0]
         y = self.output_as_lists_of_lists[1]
         data = self.output_as_lists_of_lists[2:]
