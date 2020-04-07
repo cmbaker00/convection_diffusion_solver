@@ -9,11 +9,6 @@ import itertools
 import copy
 from scipy.interpolate import interp2d
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-
-import warnings
 
 
 class PDEObject:
