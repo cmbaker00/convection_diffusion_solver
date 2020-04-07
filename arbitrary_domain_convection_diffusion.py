@@ -28,6 +28,7 @@ class PDEObject:
         self.convection_data = self.load_convection()
 
         # Do an early check that the results directory exists
+
         try:
             np.savetxt(
                 "{path}{name}.csv".format(
@@ -553,6 +554,7 @@ class PDEObject:
             previous_time = current_time
             current_time += t_step
 
+
             # Check for change in convection data
             if self.detect_change_in_convection_data(previous_time, current_time):
                 pde_equation = self.define_ode(current_time)
@@ -564,6 +566,12 @@ class PDEObject:
             if self.parameter.plotting:
                 viewer.plot()
             print('Current time step: {}, finish time: {}'.format(current_time, self.parameter.simulation_duration))
+
+            # If the final time step goes beyond the duration, do a shorter finishing step.
+            if current_time > t0 + self.parameter.simulation_duration:
+                t_step = current_time - (t0 + self.parameter.simulation_duration)
+                pde_equation.solve(var=sol_variable, dt=t_step)  # solve one time step
+
         # At completion, save the final state
         self.add_current_state_to_save_file(current_time)
 
@@ -581,14 +589,13 @@ class PDEObject:
             data_output += new_row
 
         np.savetxt(
-            "{path}{name}.csv".format(
-            path=self.parameter.results_path,
-            name=self.parameter.simulation_name
-        ),
+            "{path}{name_results}.csv".format(
+                path=self.parameter.results_path,
+                name=self.parameter.simulation_name
+            ),
             data_output,
             delimiter=',',
             fmt='%s')
-
 
 
 if __name__ == "__main__":
